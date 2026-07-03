@@ -3,6 +3,7 @@ import authRouter from "./routes/auth.js";
 import financeRouter from "./routes/finance.js";
 import aiRouter from "./routes/ai.js";
 import adminRouter from "./routes/admin.js";
+import { isDatabaseConnected } from "./database/mongodb.js";
 
 export function createApp() {
   const app = express();
@@ -13,7 +14,12 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    const database = isDatabaseConnected() ? "connected" : "disconnected";
+    res.status(database === "connected" ? 200 : 503).json({
+      status: database === "connected" ? "ok" : "degraded",
+      database,
+      timestamp: new Date().toISOString(),
+    });
   });
 
   app.use("/api/auth", authRouter);

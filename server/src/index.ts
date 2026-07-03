@@ -2,8 +2,14 @@ import path from "node:path";
 import express from "express";
 import { createApp, errorHandler } from "./app.js";
 import { env } from "./config/env.js";
+import { DB } from "./db.js";
+import { closeDatabase, connectDatabase } from "./database/mongodb.js";
+import { migrateLegacyUsers } from "./repositories/userRepository.js";
 
 async function startServer() {
+  await connectDatabase();
+  await migrateLegacyUsers(DB.data.users);
+
   const app = createApp();
 
   if (env.isProduction) {
@@ -30,13 +36,17 @@ async function startServer() {
     console.log(`FinBuddy AI is running at http://localhost:${env.port}`);
   });
 
+  let shuttingDown = false;
   const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     console.log(`${signal} received; shutting down gracefully.`);
-    server.close((error) => {
+    server.close(async (error) => {
       if (error) {
         console.error("Server shutdown failed:", error);
         process.exit(1);
       }
+      await closeDatabase();
       process.exit(0);
     });
   };

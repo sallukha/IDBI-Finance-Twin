@@ -1,312 +1,287 @@
-import { Router, Response } from "express";
+import { randomInt, randomUUID } from "node:crypto";
+import { Router, type Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { DB, User } from "../db.js";
-import { authenticateJWT, AuthenticatedRequest } from "../middleware/auth.js";
+import type { User } from "../db.js";
+import { authenticateJWT, type AuthenticatedRequest } from "../middleware/auth.js";
 import { env } from "../config/env.js";
+import {
+  createUser,
+  findUserByEmail,
+  findUserById,
+  isDuplicateEmailError,
+  updateUser,
+} from "../repositories/userRepository.js";
 
 const router = Router();
+const riskLevels = new Set<User["riskLevel"]>(["Low", "Medium", "High"]);
 
-// Helper to generate JWT
+function normalizeEmail(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function generateOtp(): string {
+  return randomInt(100000, 1000000).toString();
+}
+
 function generateToken(user: User): string {
   return jwt.sign(
     { id: user.id, email: user.email, isAdmin: !!user.isAdmin },
     env.jwtSecret,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
 }
 
-// 1. SIGNUP
+function publicUser(user: User) {
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    age: user.age,
+    salary: user.salary,
+    riskLevel: user.riskLevel,
+    isAdmin: !!user.isAdmin,
+    createdAt: user.createdAt,
+  };
+}
+
 router.post("/signup", async (req, res) => {
   try {
-    const { email, password, fullName, age, salary, riskLevel } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const password = typeof req.body.password === "string" ? req.body.password : "";
+    const fullName = typeof req.body.fullName === "string" ? req.body.fullName.trim() : "";
 
-    if (!email || !password || !fullName) {
-      res.status(400).json({ error: "Email, password and name are required" });
+    if (!email || !email.includes("@") || !fullName) {
+      res.status(400).json({ error: "A valid email and name are required" });
+      return;
+    }
+    if (password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters long" });
+      return;
+    }
+    if (await findUserByEmail(email)) {
+      res.status(409).json({ error: "Email already registered" });
       return;
     }
 
-    const dbData = DB.data;
-    const existingUser = dbData.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-
-    if (existingUser) {
-      res.status(400).json({ error: "Email already registered" });
-      return;
-    }
-
-    // Hash Password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // Generate random 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    const newUser: User = {
-      id: "u_" + Math.random().toString(36).substr(2, 9),
-      email: email.toLowerCase(),
-      passwordHash,
+    const requestedRisk = req.body.riskLevel as User["riskLevel"];
+    const otp = generateOtp();
+    const user: User = {
+      id: `u_${randomUUID()}`,
+      email,
+      passwordHash: await bcrypt.hash(password, 12),
       fullName,
-      age: Number(age) || 25,
-      salary: Number(salary) || 50000,
-      riskLevel: riskLevel || "Medium",
-      verified: false, // OTP required
+      age: Number(req.body.age) || 25,
+      salary: Number(req.body.salary) || 50000,
+      riskLevel: riskLevels.has(requestedRisk) ? requestedRisk : "Medium",
+      verified: false,
       otp,
-      otpExpiry,
+      otpExpiry: Date.now() + 10 * 60 * 1000,
       createdAt: new Date().toISOString(),
+      isAdmin: false,
     };
 
-    dbData.users.push(newUser);
-    DB.save(dbData);
+    await createUser(user);
 
     res.status(201).json({
       message: "Registration successful. Please verify OTP.",
-      userId: newUser.id,
-      email: newUser.email,
-      otp, // Sending OTP back directly so the user can test easily without real email server!
+      userId: user.id,
+      email: user.email,
+      ...(!env.isProduction ? { otp } : {}),
     });
   } catch (error) {
+    if (isDuplicateEmailError(error)) {
+      res.status(409).json({ error: "Email already registered" });
+      return;
+    }
+    console.error("Signup failed:", error);
     res.status(500).json({ error: "Internal server error during signup" });
   }
 });
 
-// 2. LOGIN
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const password = typeof req.body.password === "string" ? req.body.password : "";
 
     if (!email || !password) {
       res.status(400).json({ error: "Email and password are required" });
       return;
     }
 
-    const dbData = DB.data;
-    const user = dbData.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-
-    if (!user) {
+    const user = await findUserByEmail(email);
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       res.status(401).json({ error: "Invalid email or password" });
       return;
     }
 
-    // Verify Password
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      res.status(401).json({ error: "Invalid email or password" });
-      return;
-    }
-
-    // If verified, generate token and return
     if (!user.verified) {
-      // Re-trigger OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      user.otp = otp;
-      user.otpExpiry = Date.now() + 10 * 60 * 1000;
-      DB.save(dbData);
-
+      const otp = generateOtp();
+      await updateUser(user.id, {
+        otp,
+        otpExpiry: Date.now() + 10 * 60 * 1000,
+      });
       res.status(202).json({
         message: "OTP verification required",
         userId: user.id,
         email: user.email,
-        otp, // sent back for test ease
         verified: false,
+        ...(!env.isProduction ? { otp } : {}),
       });
       return;
     }
 
-    const token = generateToken(user);
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        age: user.age,
-        salary: user.salary,
-        riskLevel: user.riskLevel,
-        isAdmin: !!user.isAdmin,
-      },
-    });
+    res.json({ token: generateToken(user), user: publicUser(user) });
   } catch (error) {
+    console.error("Login failed:", error);
     res.status(500).json({ error: "Internal server error during login" });
   }
 });
 
-// 3. VERIFY OTP
-router.post("/verify-otp", (req, res) => {
+router.post("/verify-otp", async (req, res) => {
   try {
-    const { email, otp } = req.body;
-
+    const email = normalizeEmail(req.body.email);
+    const otp = typeof req.body.otp === "string" ? req.body.otp.trim() : "";
     if (!email || !otp) {
       res.status(400).json({ error: "Email and OTP code are required" });
       return;
     }
 
-    const dbData = DB.data;
-    const user = dbData.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-
+    const user = await findUserByEmail(email);
     if (!user) {
       res.status(404).json({ error: "User not found" });
       return;
     }
-
-    if (user.otp !== otp || (user.otpExpiry && Date.now() > user.otpExpiry)) {
+    if (user.otp !== otp || !user.otpExpiry || Date.now() > user.otpExpiry) {
       res.status(400).json({ error: "Invalid or expired OTP code" });
       return;
     }
 
-    // Mark as verified
-    user.verified = true;
-    user.otp = undefined;
-    user.otpExpiry = undefined;
-    DB.save(dbData);
+    const verifiedUser = await updateUser(user.id, { verified: true }, ["otp", "otpExpiry"]);
+    if (!verifiedUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
 
-    const token = generateToken(user);
     res.json({
       message: "Email verified successfully!",
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        age: user.age,
-        salary: user.salary,
-        riskLevel: user.riskLevel,
-        isAdmin: !!user.isAdmin,
-      },
+      token: generateToken(verifiedUser),
+      user: publicUser(verifiedUser),
     });
   } catch (error) {
+    console.error("OTP verification failed:", error);
     res.status(500).json({ error: "OTP verification failed" });
   }
 });
 
-// 4. FORGOT PASSWORD
-router.post("/forgot-password", (req, res) => {
+router.post("/forgot-password", async (req, res) => {
   try {
-    const { email } = req.body;
-
+    const email = normalizeEmail(req.body.email);
     if (!email) {
       res.status(400).json({ error: "Email is required" });
       return;
     }
 
-    const dbData = DB.data;
-    const user = dbData.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-
+    const user = await findUserByEmail(email);
     if (!user) {
       res.status(404).json({ error: "Email not found" });
       return;
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otp = otp;
-    user.otpExpiry = Date.now() + 10 * 60 * 1000;
-    DB.save(dbData);
+    const otp = generateOtp();
+    await updateUser(user.id, {
+      otp,
+      otpExpiry: Date.now() + 10 * 60 * 1000,
+    });
 
     res.json({
       message: "Reset OTP generated successfully",
       email: user.email,
-      otp, // return OTP directly for testing
+      ...(!env.isProduction ? { otp } : {}),
     });
   } catch (error) {
+    console.error("Forgot password failed:", error);
     res.status(500).json({ error: "Forgot password operation failed" });
   }
 });
 
-// 5. RESET PASSWORD (using OTP)
 router.post("/reset-password", async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const otp = typeof req.body.otp === "string" ? req.body.otp.trim() : "";
+    const newPassword =
+      typeof req.body.newPassword === "string" ? req.body.newPassword : "";
 
     if (!email || !otp || !newPassword) {
       res.status(400).json({ error: "Email, OTP, and new password are required" });
       return;
     }
+    if (newPassword.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters long" });
+      return;
+    }
 
-    const dbData = DB.data;
-    const user = dbData.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-
+    const user = await findUserByEmail(email);
     if (!user) {
       res.status(404).json({ error: "User not found" });
       return;
     }
-
-    if (user.otp !== otp || (user.otpExpiry && Date.now() > user.otpExpiry)) {
+    if (user.otp !== otp || !user.otpExpiry || Date.now() > user.otpExpiry) {
       res.status(400).json({ error: "Invalid or expired OTP" });
       return;
     }
 
-    // Reset Password
-    const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(newPassword, salt);
-    user.verified = true; // Auto-verify on password reset if they had the OTP
-    user.otp = undefined;
-    user.otpExpiry = undefined;
-    DB.save(dbData);
-
+    await updateUser(
+      user.id,
+      {
+        passwordHash: await bcrypt.hash(newPassword, 12),
+        verified: true,
+      },
+      ["otp", "otpExpiry"],
+    );
     res.json({ message: "Password reset successful! You can now log in." });
   } catch (error) {
+    console.error("Password reset failed:", error);
     res.status(500).json({ error: "Password reset failed" });
   }
 });
 
-// 6. GET CURRENT USER PROFILE
-router.get("/profile", authenticateJWT, (req: AuthenticatedRequest, res: Response) => {
+router.get("/profile", authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const dbData = DB.data;
-    const user = dbData.users.find((u) => u.id === req.user?.id);
-
+    const user = await findUserById(req.user!.id);
     if (!user) {
       res.status(404).json({ error: "User profile not found" });
       return;
     }
-
-    res.json({
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      age: user.age,
-      salary: user.salary,
-      riskLevel: user.riskLevel,
-      isAdmin: !!user.isAdmin,
-      createdAt: user.createdAt,
-    });
+    res.json(publicUser(user));
   } catch (error) {
+    console.error("Profile lookup failed:", error);
     res.status(500).json({ error: "Failed to fetch profile" });
   }
 });
 
-// 7. UPDATE PROFILE
-router.put("/profile", authenticateJWT, (req: AuthenticatedRequest, res: Response) => {
+router.put("/profile", authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { fullName, age, salary, riskLevel } = req.body;
-    const dbData = DB.data;
-    const user = dbData.users.find((u) => u.id === req.user?.id);
+    const values: Partial<User> = {};
+    if (typeof req.body.fullName === "string" && req.body.fullName.trim()) {
+      values.fullName = req.body.fullName.trim();
+    }
+    if (req.body.age !== undefined) values.age = Number(req.body.age);
+    if (req.body.salary !== undefined) values.salary = Number(req.body.salary);
+    if (riskLevels.has(req.body.riskLevel)) values.riskLevel = req.body.riskLevel;
 
+    const user = await updateUser(req.user!.id, values);
     if (!user) {
       res.status(404).json({ error: "User profile not found" });
       return;
     }
 
-    if (fullName) user.fullName = fullName;
-    if (age) user.age = Number(age);
-    if (salary) user.salary = Number(salary);
-    if (riskLevel) user.riskLevel = riskLevel;
-
-    DB.save(dbData);
-
     res.json({
       message: "Profile updated successfully!",
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        age: user.age,
-        salary: user.salary,
-        riskLevel: user.riskLevel,
-        isAdmin: !!user.isAdmin,
-      },
+      user: publicUser(user),
     });
   } catch (error) {
+    console.error("Profile update failed:", error);
     res.status(500).json({ error: "Failed to update profile" });
   }
 });
