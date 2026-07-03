@@ -1,0 +1,6 @@
+{
+  "name": "FinBuddy AI",
+  "description": "AI Powered Digital Wealth Management Platform for IDBI Innovate 2026.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
