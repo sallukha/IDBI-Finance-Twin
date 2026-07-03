@@ -88,3 +88,8 @@ VITE_API_URL=https://your-backend.onrender.com
 Do not include a trailing slash. Redeploy the Render backend after these
 changes so its CORS middleware is active. For tighter production access, set
 `CLIENT_ORIGIN` on Render to the final Netlify site URL.
+
+Netlify must build from the repository root because the root `package.json`
+owns all dependencies. Leave the dashboard **Package directory** empty; the
+committed configuration explicitly uses `/` as the base and `dist/client` as
+the publish directory.
