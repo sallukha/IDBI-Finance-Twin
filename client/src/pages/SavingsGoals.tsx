@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useApp } from "../contexts/AppContext.js";
+import { apiFetch } from "../lib/api.js";
 import { Plus, Target, Calendar, Sparkles, DollarSign, ArrowUpRight, TrendingUp, CheckCircle, Trash } from "lucide-react";
 
 interface Goal {
@@ -30,7 +31,7 @@ export const SavingsGoals: React.FC = () => {
   const fetchGoals = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/finance/goals", {
+      const res = await apiFetch("/api/finance/goals", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -51,7 +52,7 @@ export const SavingsGoals: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/finance/goals", {
+      const res = await apiFetch("/api/finance/goals", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -92,7 +93,7 @@ export const SavingsGoals: React.FC = () => {
       if (!goal) return;
 
       const newAmount = goal.currentAmount + Number(depositAmount);
-      const res = await fetch(`/api/finance/goals/${depositGoalId}`, {
+      const res = await apiFetch(`/api/finance/goals/${depositGoalId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -121,7 +122,7 @@ export const SavingsGoals: React.FC = () => {
     if (!window.confirm("Delete this savings goal?")) return;
 
     try {
-      const res = await fetch(`/api/finance/goals/${id}`, {
+      const res = await apiFetch(`/api/finance/goals/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

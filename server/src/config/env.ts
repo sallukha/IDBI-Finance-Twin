@@ -30,6 +30,7 @@ export const env = Object.freeze({
   jwtSecret,
   mongodbUri,
   mongodbDbName: process.env.MONGODB_DB_NAME ?? "finbuddy",
+  clientOrigin: process.env.CLIENT_ORIGIN ?? "*",
   geminiApiKey: process.env.GEMINI_API_KEY,
   dataDir: path.resolve(process.cwd(), process.env.DATA_DIR ?? "data"),
 });

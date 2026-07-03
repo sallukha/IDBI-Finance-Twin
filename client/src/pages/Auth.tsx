@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useApp } from "../contexts/AppContext.js";
+import { apiFetch } from "../lib/api.js";
 import { Lock, Mail, User, ShieldCheck, TrendingUp, Sparkles, Key, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -29,7 +30,7 @@ export const Auth: React.FC = () => {
 
     try {
       if (mode === "login") {
-        const res = await fetch("/api/auth/login", {
+        const res = await apiFetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
@@ -42,7 +43,7 @@ export const Auth: React.FC = () => {
           addToast(data.error || "Login failed", "error");
         }
       } else if (mode === "signup") {
-        const res = await fetch("/api/auth/signup", {
+        const res = await apiFetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password, fullName, age, salary, riskLevel }),
@@ -56,7 +57,7 @@ export const Auth: React.FC = () => {
           addToast(data.error || "Signup failed", "error");
         }
       } else if (mode === "forgot") {
-        const res = await fetch("/api/auth/forgot-password", {
+        const res = await apiFetch("/api/auth/forgot-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
@@ -75,7 +76,7 @@ export const Auth: React.FC = () => {
           addToast(data.error || "Email not registered", "error");
         }
       } else if (mode === "reset") {
-        const res = await fetch("/api/auth/reset-password", {
+        const res = await apiFetch("/api/auth/reset-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: activeEmail, otp: otpCode, newPassword }),

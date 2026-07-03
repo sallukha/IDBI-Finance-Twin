@@ -75,3 +75,16 @@ and checks `/api/health`.
 
 Never commit the local `.env` file. You can also add its values from the
 service's **Environment** page using **Add from .env**.
+
+## Deploy the client on Netlify
+
+The root `netlify.toml` builds and publishes only the Vite client. In the
+Netlify site's environment variables, set:
+
+```text
+VITE_API_URL=https://your-backend.onrender.com
+```
+
+Do not include a trailing slash. Redeploy the Render backend after these
+changes so its CORS middleware is active. For tighter production access, set
+`CLIENT_ORIGIN` on Render to the final Netlify site URL.

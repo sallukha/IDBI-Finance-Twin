@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useApp } from "../contexts/AppContext.js";
+import { apiFetch } from "../lib/api.js";
 import { Users, FileText, Settings, Shield, Award, DollarSign, Edit, Trash2, TrendingUp, TrendingDown, Eye } from "lucide-react";
 
 interface AdminStats {
@@ -43,13 +44,13 @@ export const Admin: React.FC = () => {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const statsRes = await fetch("/api/admin/dashboard", {
+      const statsRes = await apiFetch("/api/admin/dashboard", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const usersRes = await fetch("/api/admin/users", {
+      const usersRes = await apiFetch("/api/admin/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const txRes = await fetch("/api/admin/transactions", {
+      const txRes = await apiFetch("/api/admin/transactions", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -83,7 +84,7 @@ export const Admin: React.FC = () => {
     if (!editingUserId) return;
 
     try {
-      const res = await fetch(`/api/admin/users/${editingUserId}`, {
+      const res = await apiFetch(`/api/admin/users/${editingUserId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -114,7 +115,7 @@ export const Admin: React.FC = () => {
     if (!window.confirm("Cascade delete this user and all associated financial, chatbot, and target records? This action is irreversible!")) return;
 
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
+      const res = await apiFetch(`/api/admin/users/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

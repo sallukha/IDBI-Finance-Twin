@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useApp } from "../contexts/AppContext.js";
+import { apiFetch } from "../lib/api.js";
 import {
   Wallet,
   TrendingDown,
@@ -40,7 +41,7 @@ export const Dashboard: React.FC<{ setActiveTab: (tab: string) => void }> = ({ s
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/finance/expenses", {
+      const res = await apiFetch("/api/finance/expenses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,7 +69,7 @@ export const Dashboard: React.FC<{ setActiveTab: (tab: string) => void }> = ({ s
   const handleAddIncome = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/finance/incomes", {
+      const res = await apiFetch("/api/finance/incomes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

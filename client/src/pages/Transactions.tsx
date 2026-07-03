@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useApp } from "../contexts/AppContext.js";
+import { apiFetch } from "../lib/api.js";
 import { Plus, Trash, Search, ArrowDownCircle, ArrowUpCircle, Filter, FileSpreadsheet } from "lucide-react";
 
 interface TxItem {
@@ -31,10 +32,10 @@ export const Transactions: React.FC = () => {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      const expensesRes = await fetch("/api/finance/expenses", {
+      const expensesRes = await apiFetch("/api/finance/expenses", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const incomesRes = await fetch("/api/finance/incomes", {
+      const incomesRes = await apiFetch("/api/finance/incomes", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -66,7 +67,7 @@ export const Transactions: React.FC = () => {
 
     try {
       const endpoint = itemType === "income" ? `/api/finance/incomes/${id}` : `/api/finance/expenses/${id}`;
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -87,7 +88,7 @@ export const Transactions: React.FC = () => {
     e.preventDefault();
     try {
       const endpoint = type === "income" ? "/api/finance/incomes" : "/api/finance/expenses";
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "../contexts/AppContext.js";
+import { apiFetch } from "../lib/api.js";
 import {
   Bot,
   Sparkles,
@@ -51,7 +52,7 @@ export const AIFinance: React.FC = () => {
 
   const fetchChatHistory = async () => {
     try {
-      const res = await fetch("/api/ai/coach", {
+      const res = await apiFetch("/api/ai/coach", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -79,7 +80,7 @@ export const AIFinance: React.FC = () => {
     setTimeout(() => scrollToBottom(), 50);
 
     try {
-      const res = await fetch("/api/ai/coach", {
+      const res = await apiFetch("/api/ai/coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,7 +109,7 @@ export const AIFinance: React.FC = () => {
   const clearChatHistory = async () => {
     if (!window.confirm("Do you want to clear your conversation history?")) return;
     try {
-      const res = await fetch("/api/ai/coach/clear", {
+      const res = await apiFetch("/api/ai/coach/clear", {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -126,7 +127,7 @@ export const AIFinance: React.FC = () => {
   const generateBudgetPlan = async () => {
     setLoadingBudget(true);
     try {
-      const res = await fetch("/api/ai/budget-planner", {
+      const res = await apiFetch("/api/ai/budget-planner", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -145,7 +146,7 @@ export const AIFinance: React.FC = () => {
   const scanForFraud = async () => {
     setLoadingFraud(true);
     try {
-      const res = await fetch("/api/ai/fraud-detector", {
+      const res = await apiFetch("/api/ai/fraud-detector", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

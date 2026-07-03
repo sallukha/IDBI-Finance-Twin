@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, Notification, DashboardOverview } from "../types.js";
+import { apiFetch } from "../lib/api.js";
 
 // Multi-language translation database (English & Hindi)
 export const translations = {
@@ -183,7 +184,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!token) return;
     setLoadingOverview(true);
     try {
-      const res = await fetch("/api/finance/overview", {
+      const res = await apiFetch("/api/finance/overview", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -201,7 +202,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const fetchNotifications = async () => {
     if (!token) return;
     try {
-      const res = await fetch("/api/finance/notifications", {
+      const res = await apiFetch("/api/finance/notifications", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -217,7 +218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const markNotificationsRead = async () => {
     if (!token) return;
     try {
-      const res = await fetch("/api/finance/notifications/read-all", {
+      const res = await apiFetch("/api/finance/notifications/read-all", {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
