@@ -18,5 +18,7 @@ services:
         sync: false
       - key: MONGODB_DB_NAME
         value: finbuddy
+      - key: CLIENT_ORIGIN
+        value: https://cerulean-rugelach-434913.netlify.app
       - key: GEMINI_API_KEY
         sync: false

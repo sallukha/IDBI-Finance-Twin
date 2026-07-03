@@ -5,6 +5,7 @@
 
 [build.environment]
   NODE_VERSION = "22.22.0"
+  VITE_API_URL = "https://idbi-finance-twin.onrender.com"
 
 [[redirects]]
   from = "/*"
