@@ -42,7 +42,7 @@ function shouldUseWebGrounding(message: string): boolean {
 }
 
 function isPersonalDataQuery(message: string): boolean {
-  return /\b(my|meri|mera|mujhe|can i|budget|50\s*\/\s*30\s*\/\s*20|balance|income|salary|expense|spend|saving|goal|emergency|car|gaadi|loan|emi|credit|cibil|health score|fraud|portfolio|investment)\b/i.test(message);
+  return /\b(budget|50\s*\/\s*30\s*\/\s*20|balance|income|salary|expenses?|spending|savings?|goals?|emergency|car|gaadi|loans?|emi|credit|cibil|health score|fraud|portfolio|invest(?:ment|ments|ing)?|sip|mutual funds?|ppf)\b/i.test(message);
 }
 
 function money(value: number): string {
@@ -103,6 +103,11 @@ function getUserIncomes(userId: string) {
 function isHindiStyle(message: string): boolean {
   return /[\u0900-\u097f]/.test(message) ||
     /\b(kya|kaise|kitna|meri|mera|mujhe|batao|hai|karu|hoga|sakta)\b/i.test(message);
+}
+
+function isObsoleteFallback(message: string): boolean {
+  return message.startsWith("I’m currently in local financial mode.") ||
+    message.startsWith("I'm currently in local financial mode.");
 }
 
 function getLocalCoachFallback(message: string, context: CoachContext): string {
@@ -183,7 +188,7 @@ function getLocalCoachFallback(message: string, context: CoachContext): string {
     return `${hindi ? "Aapke goals" : "Your goals"}:\n- ${lines.join("\n- ")}${coverage}`;
   }
 
-  if (/\b(invest|sip|mutual|ppf|portfolio|nivesh|निवेश)\b/i.test(query)) {
+  if (/\b(invest(?:ment|ments|ing)?|sip|mutual funds?|ppf|portfolio|nivesh|निवेश)\b/i.test(query)) {
     const portfolio = context.investments
       .map((item) => `${item.type}: ${money(item.amount)} (${item.returns} stated return)`)
       .join("\n- ");
@@ -209,8 +214,8 @@ function getLocalCoachFallback(message: string, context: CoachContext): string {
   }
 
   return hindi
-    ? `Main abhi local financial mode mein hoon. Aapke exact FinBuddy data se related sawal—income, kharch, savings, goals, car loan, credit score ya investments—poochhein. General ya latest web answers ke liye server par GEMINI_API_KEY configure karni hogi.`
-    : "I’m currently in local financial mode. Ask me about your FinBuddy income, spending, savings, goals, car loan, credit score, or investments. General and current-web answers require GEMINI_API_KEY on the server.";
+    ? `Live AI se response abhi nahi mila. Aapka latest snapshot: income ${money(context.income)}, expenses ${money(context.expense)}, savings ${money(context.savings)}. Kripya sawal dobara try karein.`
+    : `The live AI response was temporarily unavailable. Your latest snapshot is income ${money(context.income)}, expenses ${money(context.expense)}, and savings ${money(context.savings)}. Please retry your question.`;
 }
 
 router.get("/status", authenticateJWT, (_req: AuthenticatedRequest, res: Response) => {
@@ -218,8 +223,23 @@ router.get("/status", authenticateJWT, (_req: AuthenticatedRequest, res: Respons
   res.json({ mode: live ? "live" : "local", model: live ? env.geminiModel : null, webGrounding: live });
 });
 
-router.get(["/chats", "/coach"], authenticateJWT, (req: AuthenticatedRequest, res: Response) => {
-  res.json(DB.data.chats.filter((chat) => chat.userId === req.user!.id));
+router.get(["/chats", "/coach"], authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const dbData = DB.data;
+    const cleanedChats = dbData.chats.filter((chat) => !(
+      chat.userId === req.user!.id &&
+      chat.sender === "ai" &&
+      isObsoleteFallback(chat.message)
+    ));
+    if (cleanedChats.length !== dbData.chats.length) {
+      dbData.chats = cleanedChats;
+      await DB.save(dbData);
+    }
+    res.json(cleanedChats.filter((chat) => chat.userId === req.user!.id));
+  } catch (error) {
+    console.error("Chat history load failed:", error);
+    res.status(500).json({ error: "Failed to load chat history" });
+  }
 });
 
 router.delete("/coach/clear", authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
