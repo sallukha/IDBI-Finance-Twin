@@ -33,6 +33,7 @@ export const AIFinance: React.FC = () => {
   const [inputMsg, setInputMsg] = useState("");
   const [loadingChat, setLoadingChat] = useState(false);
   const [aiLastMsg, setAiLastMsg] = useState<string | null>(null);
+  const [aiMode, setAiMode] = useState<"checking" | "live" | "local">("checking");
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // 2. BUDGET PLANNER STATES
@@ -47,8 +48,25 @@ export const AIFinance: React.FC = () => {
   useEffect(() => {
     if (token && activeTab === "coach") {
       fetchChatHistory();
+      fetchAIStatus();
     }
   }, [token, activeTab]);
+
+  const fetchAIStatus = async () => {
+    try {
+      const res = await apiFetch("/api/ai/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setAiMode("local");
+        return;
+      }
+      const data = await res.json();
+      setAiMode(data.mode === "live" ? "live" : "local");
+    } catch {
+      setAiMode("local");
+    }
+  };
 
   const fetchChatHistory = async () => {
     try {
@@ -94,9 +112,11 @@ export const AIFinance: React.FC = () => {
         // Append AI response
         setMessages((prev) => [...prev, data.aiMessage]);
         setAiLastMsg(data.aiMessage.message);
+        setAiMode(data.mode === "local" ? "local" : "live");
         setTimeout(() => scrollToBottom(), 100);
       } else {
-        addToast("AI Coach failed to respond.", "error");
+        const data = await res.json().catch(() => null);
+        addToast(data?.error || "AI Coach failed to respond.", "error");
       }
     } catch (e) {
       console.error(e);
@@ -215,7 +235,13 @@ export const AIFinance: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-gray-900 dark:text-white">FinBuddy AI Coach</h3>
-                    <p className="text-[10px] text-green-600 font-semibold animate-pulse">● Online & Guarded</p>
+                    <p className={`text-[10px] font-semibold ${aiMode === "live" ? "text-green-600" : "text-amber-600"}`}>
+                      {aiMode === "checking"
+                        ? "● Checking AI service…"
+                        : aiMode === "live"
+                          ? "● Live Gemini + web grounding"
+                          : "● Local financial mode"}
+                    </p>
                   </div>
                 </div>
 

@@ -41,6 +41,10 @@ function shouldUseWebGrounding(message: string): boolean {
   return /\b(latest|today|current|news|rate|price|nav|market|stock|gold|inflation|repo|tax rule|2026)\b/i.test(message);
 }
 
+function isPersonalDataQuery(message: string): boolean {
+  return /\b(my|meri|mera|mujhe|can i|balance|income|salary|expense|spend|saving|goal|emergency|car|gaadi|loan|emi|credit|cibil|health score|fraud|portfolio|investment)\b/i.test(message);
+}
+
 function money(value: number): string {
   return `₹${Math.round(value).toLocaleString("en-IN")}`;
 }
@@ -273,9 +277,12 @@ FINANCIAL_CONTEXT (${new Date().toISOString()}):
 ${JSON.stringify(context)}`;
 
     let answer = "";
-    let mode: "live" | "local" = "local";
+    let mode: "live" | "grounded" | "local" = "local";
     const client = getGeminiClient();
-    if (client) {
+    if (isPersonalDataQuery(message)) {
+      answer = getLocalCoachFallback(message, context);
+      mode = "grounded";
+    } else if (client) {
       try {
         const response = await client.models.generateContent({
           model: env.geminiModel,
@@ -289,7 +296,8 @@ ${JSON.stringify(context)}`;
           config: {
             systemInstruction,
             temperature: 0.25,
-            maxOutputTokens: 1_000,
+            maxOutputTokens: 2_048,
+            thinkingConfig: { thinkingBudget: 256 },
             ...(shouldUseWebGrounding(message) ? { tools: [{ googleSearch: {} }] } : {}),
           },
         });
