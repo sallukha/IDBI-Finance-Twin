@@ -65,7 +65,6 @@ router.post("/signup", async (req, res) => {
     }
 
     const requestedRisk = req.body.riskLevel as User["riskLevel"];
-    const otp = generateOtp();
     const user: User = {
       id: `u_${randomUUID()}`,
       email,
@@ -74,9 +73,7 @@ router.post("/signup", async (req, res) => {
       age: Number(req.body.age) || 25,
       salary: Number(req.body.salary) || 50000,
       riskLevel: riskLevels.has(requestedRisk) ? requestedRisk : "Medium",
-      verified: false,
-      otp,
-      otpExpiry: Date.now() + 10 * 60 * 1000,
+      verified: true,
       createdAt: new Date().toISOString(),
       isAdmin: false,
     };
@@ -84,10 +81,11 @@ router.post("/signup", async (req, res) => {
     await createUser(user);
 
     res.status(201).json({
-      message: "Registration successful. Please verify OTP.",
+      message: "Registration successful.",
       userId: user.id,
       email: user.email,
-      ...(!env.isProduction ? { otp } : {}),
+      token: generateToken(user),
+      user: publicUser(user),
     });
   } catch (error) {
     if (isDuplicateEmailError(error)) {
@@ -115,62 +113,22 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    if (!user.verified) {
-      const otp = generateOtp();
-      await updateUser(user.id, {
-        otp,
-        otpExpiry: Date.now() + 10 * 60 * 1000,
-      });
-      res.status(202).json({
-        message: "OTP verification required",
-        userId: user.id,
-        email: user.email,
-        verified: false,
-        ...(!env.isProduction ? { otp } : {}),
-      });
-      return;
-    }
+    const authenticatedUser = user.verified
+      ? user
+      : await updateUser(user.id, { verified: true }, ["otp", "otpExpiry"]);
 
-    res.json({ token: generateToken(user), user: publicUser(user) });
-  } catch (error) {
-    console.error("Login failed:", error);
-    res.status(500).json({ error: "Internal server error during login" });
-  }
-});
-
-router.post("/verify-otp", async (req, res) => {
-  try {
-    const email = normalizeEmail(req.body.email);
-    const otp = typeof req.body.otp === "string" ? req.body.otp.trim() : "";
-    if (!email || !otp) {
-      res.status(400).json({ error: "Email and OTP code are required" });
-      return;
-    }
-
-    const user = await findUserByEmail(email);
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-    if (user.otp !== otp || !user.otpExpiry || Date.now() > user.otpExpiry) {
-      res.status(400).json({ error: "Invalid or expired OTP code" });
-      return;
-    }
-
-    const verifiedUser = await updateUser(user.id, { verified: true }, ["otp", "otpExpiry"]);
-    if (!verifiedUser) {
-      res.status(404).json({ error: "User not found" });
+    if (!authenticatedUser) {
+      res.status(401).json({ error: "Invalid email or password" });
       return;
     }
 
     res.json({
-      message: "Email verified successfully!",
-      token: generateToken(verifiedUser),
-      user: publicUser(verifiedUser),
+      token: generateToken(authenticatedUser),
+      user: publicUser(authenticatedUser),
     });
   } catch (error) {
-    console.error("OTP verification failed:", error);
-    res.status(500).json({ error: "OTP verification failed" });
+    console.error("Login failed:", error);
+    res.status(500).json({ error: "Internal server error during login" });
   }
 });
 

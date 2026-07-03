@@ -3,7 +3,7 @@ import { useApp } from "../contexts/AppContext.js";
 import { Lock, Mail, User, ShieldCheck, TrendingUp, Sparkles, Key, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-type AuthMode = "login" | "signup" | "otp" | "forgot" | "reset";
+type AuthMode = "login" | "signup" | "forgot" | "reset";
 
 export const Auth: React.FC = () => {
   const { login: handleLoginSuccess, addToast, t } = useApp();
@@ -38,11 +38,6 @@ export const Auth: React.FC = () => {
         const data = await res.json();
         if (res.status === 200) {
           handleLoginSuccess(data.token, data.user);
-        } else if (res.status === 202) {
-          // OTP verification needed
-          addToast("OTP code sent to your email", "info");
-          setActiveEmail(data.email);
-          setMode("otp");
         } else {
           addToast(data.error || "Login failed", "error");
         }
@@ -56,29 +51,9 @@ export const Auth: React.FC = () => {
         const data = await res.json();
         if (res.ok) {
           addToast(data.message, "success");
-          setActiveEmail(data.email);
-          // Auto-populate OTP for instant sandbox testing!
-          if (data.otp) {
-            setOtpCode(data.otp);
-            addToast(`SANDBOX OTP: ${data.otp} (Copied Automatically!)`, "info");
-          }
-          setMode("otp");
-        } else {
-          addToast(data.error || "Signup failed", "error");
-        }
-      } else if (mode === "otp") {
-        const res = await fetch("/api/auth/verify-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: activeEmail, otp: otpCode }),
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-          addToast(data.message, "success");
           handleLoginSuccess(data.token, data.user);
         } else {
-          addToast(data.error || "Incorrect OTP code", "error");
+          addToast(data.error || "Signup failed", "error");
         }
       } else if (mode === "forgot") {
         const res = await fetch("/api/auth/forgot-password", {
@@ -189,14 +164,12 @@ export const Auth: React.FC = () => {
             <h2 className="text-2xl font-bold font-display text-gray-900 dark:text-white">
               {mode === "login" && "Login to Wealth Space"}
               {mode === "signup" && "Create Premium Account"}
-              {mode === "otp" && "Verify Secure Code"}
               {mode === "forgot" && "Reset Password Request"}
               {mode === "reset" && "Create New Password"}
             </h2>
             <p className="text-xs text-gray-400 mt-1">
               {mode === "login" && "Enter your credentials to access FinBuddy"}
               {mode === "signup" && "Sign up and build your AI-personalized financial model"}
-              {mode === "otp" && `OTP sent successfully to ${activeEmail}`}
               {mode === "forgot" && "We will generate a 6-digit verification code"}
               {mode === "reset" && "Enter your 6-digit OTP code and new password"}
             </p>
@@ -322,7 +295,7 @@ export const Auth: React.FC = () => {
             )}
 
             {/* 5. OTP INPUT (OTP Verification & Reset mode) */}
-            {(mode === "otp" || mode === "reset") && (
+            {mode === "reset" && (
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 block">6-Digit Verification Code</label>
                 <div className="relative">
@@ -385,7 +358,6 @@ export const Auth: React.FC = () => {
                   <span>
                     {mode === "login" && "Log In to Account"}
                     {mode === "signup" && "Create My Account"}
-                    {mode === "otp" && "Verify & Log In"}
                     {mode === "forgot" && "Send OTP Code"}
                     {mode === "reset" && "Change Password"}
                   </span>
@@ -418,7 +390,7 @@ export const Auth: React.FC = () => {
                 </button>
               </p>
             )}
-            {(mode === "otp" || mode === "forgot" || mode === "reset") && (
+            {(mode === "forgot" || mode === "reset") && (
               <button
                 onClick={() => setMode("login")}
                 className="text-blue-500 hover:underline font-semibold"
