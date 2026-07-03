@@ -64,3 +64,14 @@ npm start
 
 The build creates `dist/client` for browser assets and
 `dist/server/index.cjs` for the Node.js server.
+
+## Deploy on Render
+
+The repository includes a `render.yaml` Blueprint for one full-stack web
+service. In Render, create a new Blueprint from this repository and provide the
+prompted `MONGODB_URI` and `GEMINI_API_KEY` values. Render generates
+`JWT_SECRET`, builds with `npm ci && npm run build`, starts with `npm start`,
+and checks `/api/health`.
+
+Never commit the local `.env` file. You can also add its values from the
+service's **Environment** page using **Add from .env**.
