@@ -6,14 +6,27 @@ import adminRouter from "./routes/admin.js";
 import { isDatabaseConnected } from "./database/mongodb.js";
 import { env } from "./config/env.js";
 
+const allowedOrigins = new Set([
+  "http://localhost:3000",
+  "https://cerulean-rugelach-434913.netlify.app",
+  "https://idbi-finance-twin.netlify.app",
+  ...env.clientOrigin
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+]);
+
 export function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
   app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", env.clientOrigin);
-    res.setHeader("Vary", "Origin");
+    const requestOrigin = req.headers.origin;
+    if (requestOrigin && (allowedOrigins.has("*") || allowedOrigins.has(requestOrigin))) {
+      res.setHeader("Access-Control-Allow-Origin", requestOrigin);
+    }
+    res.vary("Origin");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     if (req.method === "OPTIONS") {
