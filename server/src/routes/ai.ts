@@ -42,7 +42,7 @@ function shouldUseWebGrounding(message: string): boolean {
 }
 
 function isPersonalDataQuery(message: string): boolean {
-  return /\b(my|meri|mera|mujhe|can i|balance|income|salary|expense|spend|saving|goal|emergency|car|gaadi|loan|emi|credit|cibil|health score|fraud|portfolio|investment)\b/i.test(message);
+  return /\b(my|meri|mera|mujhe|can i|budget|50\s*\/\s*30\s*\/\s*20|balance|income|salary|expense|spend|saving|goal|emergency|car|gaadi|loan|emi|credit|cibil|health score|fraud|portfolio|investment)\b/i.test(message);
 }
 
 function money(value: number): string {
@@ -116,6 +116,16 @@ function getLocalCoachFallback(message: string, context: CoachContext): string {
     return hindi
       ? `Namaste ${context.name}! Main aapke latest FinBuddy data ke basis par budget, expenses, savings, goals, loan aur investments ke sawalon ka jawab de sakta hoon.`
       : `Hi ${context.name}! I can answer questions using your latest FinBuddy income, expenses, savings, goals, loans, and investments.`;
+  }
+
+  if (/\b(budget|50\s*\/\s*30\s*\/\s*20)\b/i.test(query)) {
+    const needs = Math.round(context.income * 0.5);
+    const wants = Math.round(context.income * 0.3);
+    const plannedSavings = context.income - needs - wants;
+    const expenseHeadroom = needs + wants - context.expense;
+    return hindi
+      ? `Aapki ${money(context.income)} monthly income ka 50/30/20 plan:\n- Needs (50%): ${money(needs)} — rent, groceries, bills aur transport\n- Wants (30%): ${money(wants)} — shopping, dining, travel aur entertainment\n- Savings/Investments (20%): ${money(plannedSavings)}\n\nAapke current expenses ${money(context.expense)} aur savings ${money(context.savings)} hain. Isliye aap standard plan se ${money(Math.max(0, context.savings - plannedSavings))} zyada save kar rahe hain, jo strong position hai.`
+      : `Here is your 50/30/20 plan for ${money(context.income)} monthly income:\n- Needs (50%): ${money(needs)} — rent, groceries, bills, and transport\n- Wants (30%): ${money(wants)} — shopping, dining, travel, and entertainment\n- Savings/investments (20%): ${money(plannedSavings)}\n\nYour current expenses are ${money(context.expense)} and current savings are ${money(context.savings)}. You are saving ${money(Math.max(0, context.savings - plannedSavings))} more than the standard 20% target, with ${money(Math.max(0, expenseHeadroom))} of room under the combined needs-and-wants cap.`;
   }
 
   if (/\b(car|gaadi|गाड़ी|loan|emi)\b/i.test(query)) {
