@@ -44,6 +44,11 @@ npm run dev
 Open `http://localhost:3000`. Client requests continue to use the same relative
 `/api` URLs, so no frontend API-path changes are required.
 
+Authentication users are stored in MongoDB Atlas. Set `MONGODB_URI` and
+`MONGODB_DB_NAME` in `.env`; the server verifies the connection and creates a
+unique email index during startup. Local `.env` files and runtime database files
+are excluded from Git.
+
 ## Validation and production
 
 ```bash

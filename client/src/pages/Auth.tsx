@@ -306,12 +306,18 @@ export const Auth: React.FC = () => {
                   <input
                     type="password"
                     required
+                    minLength={mode === "signup" ? 8 : undefined}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-gray-50/50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-800 dark:text-gray-100 transition"
                   />
                 </div>
+                {mode === "signup" && (
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                    Use at least 8 characters.
+                  </p>
+                )}
               </div>
             )}
 
@@ -354,12 +360,16 @@ export const Auth: React.FC = () => {
                   <input
                     type="password"
                     required
+                    minLength={8}
                     placeholder="Enter new password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full bg-gray-50/50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-gray-800 dark:text-gray-100 transition"
                   />
                 </div>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  Use at least 8 characters.
+                </p>
               </div>
             )}
 
