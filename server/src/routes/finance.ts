@@ -1,13 +1,14 @@
 import { Router, Response } from "express";
 import { DB, Expense, Income, SavingsGoal, Notification } from "../db.js";
 import { authenticateJWT, AuthenticatedRequest } from "../middleware/auth.js";
+import { findUserById } from "../repositories/userRepository.js";
 
 const router = Router();
 
 // ==========================================
 // 1. OVERVIEW ANALYTICS & TRANSACTIONS
 // ==========================================
-router.get("/overview", authenticateJWT, (req: AuthenticatedRequest, res: Response) => {
+router.get("/overview", authenticateJWT, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const dbData = DB.data;
@@ -16,6 +17,7 @@ router.get("/overview", authenticateJWT, (req: AuthenticatedRequest, res: Respon
     const userExpenses = dbData.expenses.filter((e) => e.userId === userId);
     const userIncomes = dbData.incomes.filter((i) => i.userId === userId);
     const userGoals = dbData.goals.filter((g) => g.userId === userId);
+    const user = await findUserById(userId);
 
     // Dynamic Calculations
     const totalIncome = userIncomes.reduce((sum, item) => sum + item.amount, 0);
@@ -83,12 +85,21 @@ router.get("/overview", authenticateJWT, (req: AuthenticatedRequest, res: Respon
       return acc;
     }, {});
 
+    const metrics = user?.dashboardMetrics;
     res.json({
-      currentBalance,
-      monthlySpending,
-      monthlyIncome,
-      totalSavings,
-      financialHealthScore: healthScore,
+      currentBalance: metrics?.currentBalance ?? currentBalance,
+      monthlySpending: metrics?.monthlyExpenses ?? monthlySpending,
+      monthlyIncome: metrics?.monthlyIncome ?? monthlyIncome,
+      totalSavings: metrics?.monthlySavings ?? totalSavings,
+      financialHealthScore: metrics?.financialHealthScore ?? healthScore,
+      creditScore: metrics?.creditScore ?? 0,
+      emergencyFundMonths: metrics?.emergencyFundMonths ?? 0,
+      investmentValue: metrics?.investmentValue ?? 0,
+      netWorth: metrics?.netWorth ?? currentBalance + totalSavings,
+      aiRecommendation: user?.aiRecommendation,
+      fraudAlerts: user?.fraudAlerts ?? [],
+      loanPrediction: user?.loanPrediction,
+      investments: user?.investments ?? [],
       recentTransactions,
       expenseByCategory,
       incomeByCategory,

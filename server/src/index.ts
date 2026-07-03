@@ -1,14 +1,58 @@
 import path from "node:path";
 import express from "express";
+import bcrypt from "bcryptjs";
 import { createApp, errorHandler } from "./app.js";
 import { env } from "./config/env.js";
 import { DB } from "./db.js";
 import { closeDatabase, connectDatabase } from "./database/mongodb.js";
-import { migrateLegacyUsers } from "./repositories/userRepository.js";
+import { upsertDemoUser } from "./repositories/userRepository.js";
 
 async function startServer() {
   await connectDatabase();
-  await migrateLegacyUsers(DB.data.users);
+  await DB.initialize();
+  await upsertDemoUser({
+    id: "user-rahul",
+    email: "rahul.me@gmail.com",
+    passwordHash: await bcrypt.hash("Rahul@123", 12),
+    fullName: "Rahul Sharma",
+    age: 26,
+    salary: 85000,
+    riskLevel: "Low",
+    verified: true,
+    createdAt: "2026-06-01T00:00:00.000Z",
+    isAdmin: false,
+    dashboardMetrics: {
+      currentBalance: 325000,
+      monthlyIncome: 103000,
+      monthlyExpenses: 42000,
+      monthlySavings: 61000,
+      financialHealthScore: 88,
+      creditScore: 782,
+      emergencyFundMonths: 7,
+      investmentValue: 580000,
+      netWorth: 980000,
+    },
+    aiRecommendation: {
+      financialHealthScore: 88,
+      summary: "Excellent Financial Health",
+      recommendation: "Increase SIP investment from ₹15,000 to ₹20,000 to build long-term wealth. Maintain emergency savings equal to 6 months of expenses.",
+    },
+    fraudAlerts: [
+      { title: "Suspicious Transaction", amount: 48000, status: "Blocked", risk: "High" },
+    ],
+    loanPrediction: {
+      eligible: true,
+      loanAmount: 1500000,
+      emi: 29500,
+      affordability: "Safe",
+      confidence: 92,
+    },
+    investments: [
+      { type: "Mutual Fund SIP", amount: 15000, returns: "12%" },
+      { type: "PPF", amount: 5000, returns: "7.1%" },
+      { type: "Gold ETF", amount: 8000, returns: "10%" },
+    ],
+  });
 
   const app = createApp();
 

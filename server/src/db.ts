@@ -1,8 +1,18 @@
-import fs from "fs";
-import path from "path";
-import { env } from "./config/env.js";
+import type { WithId } from "mongodb";
+import { getCollection } from "./database/mongodb.js";
 
-// Define the absolute structure for our database
+export interface DashboardMetrics {
+  currentBalance: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  monthlySavings: number;
+  financialHealthScore: number;
+  creditScore: number;
+  emergencyFundMonths: number;
+  investmentValue: number;
+  netWorth: number;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -16,13 +26,37 @@ export interface User {
   otpExpiry?: number;
   createdAt: string;
   isAdmin?: boolean;
+  dashboardMetrics?: DashboardMetrics;
+  aiRecommendation?: {
+    financialHealthScore: number;
+    summary: string;
+    recommendation: string;
+  };
+  fraudAlerts?: Array<{
+    title: string;
+    amount: number;
+    status: string;
+    risk: "Low" | "Medium" | "High";
+  }>;
+  loanPrediction?: {
+    eligible: boolean;
+    loanAmount: number;
+    emi: number;
+    affordability: string;
+    confidence: number;
+  };
+  investments?: Array<{
+    type: string;
+    amount: number;
+    returns: string;
+  }>;
 }
 
 export interface Expense {
   id: string;
   userId: string;
   amount: number;
-  category: "Food" | "Travel" | "Shopping" | "Bills" | "Rent" | "Education" | "Medical" | "Entertainment";
+  category: "Food" | "Travel" | "Transport" | "Shopping" | "Bills" | "Rent" | "Education" | "Medical" | "Entertainment";
   date: string;
   description: string;
 }
@@ -31,7 +65,7 @@ export interface Income {
   id: string;
   userId: string;
   amount: number;
-  category: "Salary" | "Business" | "Freelance" | "Other";
+  category: "Salary" | "Business" | "Freelance" | "Freelancing" | "Other";
   date: string;
   description: string;
 }
@@ -63,7 +97,7 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-interface DatabaseSchema {
+export interface DatabaseSchema {
   users: User[];
   expenses: Expense[];
   incomes: Income[];
@@ -72,96 +106,84 @@ interface DatabaseSchema {
   chats: ChatMessage[];
 }
 
-const DB_DIR = env.dataDir;
-const DB_FILE = path.join(DB_DIR, "db.json");
+interface AppStateDocument extends DatabaseSchema {
+  key: "primary";
+}
 
-// Ensure data folder and file exists
-function initDB(): DatabaseSchema {
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
-  }
+const rahulId = "user-rahul";
 
-  if (!fs.existsSync(DB_FILE)) {
-    const initialData: DatabaseSchema = {
-      users: [
-        {
-          id: "admin-1",
-          email: "admin@finbuddy.ai",
-          // password: "adminpassword"
-          passwordHash: "$2a$10$9vP8uOAnbVfA5U9eM4E7e.E9f.QGvIUn3/P8IuOAnbVfA5U9eM4E7e", // hashed
-          fullName: "FinBuddy Administrator",
-          age: 35,
-          salary: 150000,
-          riskLevel: "Medium",
-          verified: true,
-          createdAt: new Date().toISOString(),
-          isAdmin: true,
-        },
-        {
-          id: "user-demo",
-          email: "demo@finbuddy.ai",
-          // password: "demopassword"
-          passwordHash: "$2a$10$8L/5f6AHeKfeR/8gKeV.euUjMInpIuOAnbVfA5U9eM4E7e.G9f.QGv", // hashed
-          fullName: "Sallu Khan",
-          age: 26,
-          salary: 85000,
-          riskLevel: "High",
-          verified: true,
-          createdAt: new Date().toISOString(),
-          isAdmin: false,
-        }
-      ],
-      expenses: [
-        { id: "e1", userId: "user-demo", amount: 1200, category: "Food", date: "2026-06-25", description: "Weekly Grocery at Metro" },
-        { id: "e2", userId: "user-demo", amount: 4500, category: "Rent", date: "2026-06-01", description: "June Rent Payment" },
-        { id: "e3", userId: "user-demo", amount: 1500, category: "Bills", date: "2026-06-10", description: "Electricity & Wi-Fi" },
-        { id: "e4", userId: "user-demo", amount: 2000, category: "Shopping", date: "2026-06-18", description: "Zara Brand Clothing" },
-        { id: "e5", userId: "user-demo", amount: 800, category: "Travel", date: "2026-06-20", description: "Uber Rides" },
-        { id: "e6", userId: "user-demo", amount: 3500, category: "Entertainment", date: "2026-06-22", description: "Premium Concert Ticket" },
-        { id: "e7", userId: "user-demo", amount: 6000, category: "Medical", date: "2026-06-28", description: "Dental Checkup & Medicines" },
-      ],
-      incomes: [
-        { id: "i1", userId: "user-demo", amount: 85000, category: "Salary", date: "2026-06-01", description: "Monthly Corporate Salary" },
-        { id: "i2", userId: "user-demo", amount: 12000, category: "Freelance", date: "2026-06-15", description: "UI Design Project Deliverable" },
-      ],
-      goals: [
-        { id: "g1", userId: "user-demo", title: "Emergency Fund", targetAmount: 50000, currentAmount: 35000, category: "Emergency Fund", deadline: "2026-12-31" },
-        { id: "g2", userId: "user-demo", title: "New Laptop", targetAmount: 120000, currentAmount: 45000, category: "Laptop", deadline: "2026-10-15" },
-      ],
-      notifications: [
-        { id: "n1", userId: "user-demo", message: "Salary of ₹85,000 received successfully!", type: "success", date: "2026-06-01T10:00:00Z", read: false },
-        { id: "n2", userId: "user-demo", message: "Monthly budget alert: You spent 85% of your food budget.", type: "warning", date: "2026-06-25T15:30:00Z", read: false },
-        { id: "n3", userId: "user-demo", message: "Emergency Fund Goal is now 70% completed! Keep it up.", type: "info", date: "2026-06-28T09:00:00Z", read: true },
-      ],
-      chats: [
-        { id: "c1", userId: "user-demo", message: "Hi FinBuddy! Can you help me plan my savings?", sender: "user", timestamp: new Date().toISOString() },
-        { id: "c2", userId: "user-demo", message: "Hello Sallu! I'm your FinBuddy AI Coach. Based on your current income of ₹97,000 and expenses of ₹19,500, you have a solid savings rate of nearly 80%! I would suggest putting ₹30,000 of your surplus into a Mutual Fund SIP. Would you like to see a custom SIP recommendation?", sender: "ai", timestamp: new Date().toISOString() }
-      ]
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), "utf8");
-    return initialData;
-  }
+function rahulDemoData(): Omit<DatabaseSchema, "users"> {
+  return {
+    incomes: [
+      { id: "rahul-income-salary", userId: rahulId, amount: 85000, category: "Salary", date: "2026-06-01", description: "Salary" },
+      { id: "rahul-income-freelance", userId: rahulId, amount: 18000, category: "Freelancing", date: "2026-06-15", description: "Freelance Project" },
+    ],
+    expenses: [
+      { id: "rahul-exp-rent", userId: rahulId, amount: 18000, category: "Rent", date: "2026-06-02", description: "House Rent" },
+      { id: "rahul-exp-groceries", userId: rahulId, amount: 6500, category: "Food", date: "2026-06-04", description: "Groceries" },
+      { id: "rahul-exp-electricity", userId: rahulId, amount: 2400, category: "Bills", date: "2026-06-05", description: "Electricity Bill" },
+      { id: "rahul-exp-internet", userId: rahulId, amount: 999, category: "Bills", date: "2026-06-06", description: "Internet" },
+      { id: "rahul-exp-petrol", userId: rahulId, amount: 4500, category: "Transport", date: "2026-06-08", description: "Petrol" },
+      { id: "rahul-exp-movie", userId: rahulId, amount: 800, category: "Entertainment", date: "2026-06-10", description: "Movie" },
+      { id: "rahul-exp-shopping", userId: rahulId, amount: 6500, category: "Shopping", date: "2026-06-12", description: "Shopping" },
+      { id: "rahul-exp-restaurant", userId: rahulId, amount: 2300, category: "Food", date: "2026-06-18", description: "Restaurant" },
+    ],
+    goals: [
+      { id: "rahul-goal-emergency", userId: rahulId, title: "Emergency Fund", targetAmount: 500000, currentAmount: 320000, category: "Emergency Fund", deadline: "2026-12-31" },
+      { id: "rahul-goal-goa", userId: rahulId, title: "Goa Trip", targetAmount: 80000, currentAmount: 45000, category: "Trip", deadline: "2027-03-31" },
+      { id: "rahul-goal-laptop", userId: rahulId, title: "New Laptop", targetAmount: 120000, currentAmount: 90000, category: "Laptop", deadline: "2026-11-30" },
+    ],
+    notifications: [
+      { id: "rahul-alert-fraud", userId: rahulId, message: "Suspicious transaction of ₹48,000 was blocked.", type: "warning", date: "2026-06-20T10:00:00.000Z", read: false },
+      { id: "rahul-alert-health", userId: rahulId, message: "Excellent Financial Health — your score is 88/100.", type: "success", date: "2026-06-19T10:00:00.000Z", read: false },
+    ],
+    chats: [
+      { id: "rahul-chat-question", userId: rahulId, message: "Can I buy a car worth ₹8 lakh next year?", sender: "user", timestamp: "2026-06-21T10:00:00.000Z" },
+      { id: "rahul-chat-answer", userId: rahulId, message: "Yes. Based on your monthly income of ₹1,03,000, expenses of ₹42,000 and savings of ₹61,000, you can comfortably afford a car loan. Your debt-to-income ratio remains healthy.", sender: "ai", timestamp: "2026-06-21T10:00:01.000Z" },
+    ],
+  };
+}
 
-  try {
-    const raw = fs.readFileSync(DB_FILE, "utf8");
-    return JSON.parse(raw);
-  } catch (e) {
-    console.error("Failed to read JSON DB, resetting to defaults", e);
-    const empty: DatabaseSchema = { users: [], expenses: [], incomes: [], goals: [], notifications: [], chats: [] };
-    fs.writeFileSync(DB_FILE, JSON.stringify(empty, null, 2), "utf8");
-    return empty;
-  }
+function emptyState(): DatabaseSchema {
+  return { users: [], expenses: [], incomes: [], goals: [], notifications: [], chats: [] };
+}
+
+function replaceRahulData(state: DatabaseSchema): DatabaseSchema {
+  const demo = rahulDemoData();
+  return {
+    ...state,
+    expenses: [...state.expenses.filter((item) => item.userId !== rahulId), ...demo.expenses],
+    incomes: [...state.incomes.filter((item) => item.userId !== rahulId), ...demo.incomes],
+    goals: [...state.goals.filter((item) => item.userId !== rahulId), ...demo.goals],
+    notifications: [...state.notifications.filter((item) => item.userId !== rahulId), ...demo.notifications],
+    chats: [...state.chats.filter((item) => item.userId !== rahulId), ...demo.chats],
+  };
 }
 
 export class DB {
-  static get data(): DatabaseSchema {
-    return initDB();
+  private static state: DatabaseSchema | null = null;
+
+  static async initialize(): Promise<void> {
+    const collection = getCollection<AppStateDocument>("app_state");
+    const stored = await collection.findOne({ key: "primary" }, { projection: { _id: 0 } });
+    const state = stored ?? emptyState();
+    const hasRahulSeed = state.incomes.some((item) => item.userId === rahulId);
+    DB.state = hasRahulSeed ? state : replaceRahulData(state);
+    await DB.save(DB.state);
   }
 
-  static save(newData: DatabaseSchema) {
-    if (!fs.existsSync(DB_DIR)) {
-      fs.mkdirSync(DB_DIR, { recursive: true });
-    }
-    fs.writeFileSync(DB_FILE, JSON.stringify(newData, null, 2), "utf8");
+  static get data(): DatabaseSchema {
+    if (!DB.state) throw new Error("Application data has not been initialized.");
+    return DB.state;
+  }
+
+  static async save(newData: DatabaseSchema): Promise<void> {
+    DB.state = newData;
+    const document: AppStateDocument = { key: "primary", ...newData };
+    await getCollection<AppStateDocument>("app_state").replaceOne(
+      { key: "primary" },
+      document as WithId<AppStateDocument>,
+      { upsert: true },
+    );
   }
 }

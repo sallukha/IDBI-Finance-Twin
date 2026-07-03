@@ -13,6 +13,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 const defaultJwtSecret = "FinBuddyAI_Premium_Secret_2026";
 const jwtSecret = process.env.JWT_SECRET ?? defaultJwtSecret;
 const mongodbUri = process.env.MONGODB_URI;
+const aiRequestTimeoutMs = Number(process.env.AI_REQUEST_TIMEOUT_MS ?? 20_000);
 
 if (nodeEnv === "production" && jwtSecret === defaultJwtSecret) {
   throw new Error("JWT_SECRET must be set to a secure value in production.");
@@ -20,6 +21,9 @@ if (nodeEnv === "production" && jwtSecret === defaultJwtSecret) {
 
 if (!mongodbUri) {
   throw new Error("MONGODB_URI is required.");
+}
+if (!Number.isFinite(aiRequestTimeoutMs) || aiRequestTimeoutMs < 1_000) {
+  throw new Error("AI_REQUEST_TIMEOUT_MS must be at least 1000.");
 }
 
 export const env = Object.freeze({
@@ -32,5 +36,7 @@ export const env = Object.freeze({
   mongodbDbName: process.env.MONGODB_DB_NAME ?? "finbuddy",
   clientOrigin: process.env.CLIENT_ORIGIN ?? "*",
   geminiApiKey: process.env.GEMINI_API_KEY,
+  geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+  aiRequestTimeoutMs,
   dataDir: path.resolve(process.cwd(), process.env.DATA_DIR ?? "data"),
 });

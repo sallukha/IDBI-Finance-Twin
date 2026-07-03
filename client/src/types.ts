@@ -15,7 +15,7 @@ export interface Expense {
   id: string;
   userId: string;
   amount: number;
-  category: "Food" | "Travel" | "Shopping" | "Bills" | "Rent" | "Education" | "Medical" | "Entertainment";
+  category: "Food" | "Travel" | "Transport" | "Shopping" | "Bills" | "Rent" | "Education" | "Medical" | "Entertainment";
   date: string;
   description: string;
   type?: "expense";
@@ -25,7 +25,7 @@ export interface Income {
   id: string;
   userId: string;
   amount: number;
-  category: "Salary" | "Business" | "Freelance" | "Other";
+  category: "Salary" | "Business" | "Freelance" | "Freelancing" | "Other";
   date: string;
   description: string;
   type?: "income";
@@ -64,6 +64,29 @@ export interface DashboardOverview {
   monthlyIncome: number;
   totalSavings: number;
   financialHealthScore: number;
+  creditScore: number;
+  emergencyFundMonths: number;
+  investmentValue: number;
+  netWorth: number;
+  aiRecommendation?: {
+    financialHealthScore: number;
+    summary: string;
+    recommendation: string;
+  };
+  fraudAlerts: Array<{
+    title: string;
+    amount: number;
+    status: string;
+    risk: RiskLevel;
+  }>;
+  loanPrediction?: {
+    eligible: boolean;
+    loanAmount: number;
+    emi: number;
+    affordability: string;
+    confidence: number;
+  };
+  investments: Array<{ type: string; amount: number; returns: string }>;
   recentTransactions: Array<(Expense & { type: "expense" }) | (Income & { type: "income" })>;
   expenseByCategory: { [key: string]: number };
   incomeByCategory: { [key: string]: number };

@@ -13,6 +13,10 @@ import {
   PlusCircle,
   Calendar,
   Layers,
+  CreditCard,
+  ShieldCheck,
+  PiggyBank,
+  Landmark,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
@@ -246,6 +250,28 @@ export const Dashboard: React.FC<{ setActiveTab: (tab: string) => void }> = ({ s
         </div>
       </div>
 
+      {/* Extended wealth scorecard */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Credit Score", value: overview.creditScore.toLocaleString("en-IN"), suffix: "", icon: CreditCard, color: "text-cyan-600 bg-cyan-50 dark:bg-cyan-950/30" },
+          { label: "Emergency Fund", value: overview.emergencyFundMonths.toLocaleString("en-IN"), suffix: " Months", icon: ShieldCheck, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" },
+          { label: "Investment Value", value: `₹${overview.investmentValue.toLocaleString("en-IN")}`, suffix: "", icon: PiggyBank, color: "text-amber-600 bg-amber-50 dark:bg-amber-950/30" },
+          { label: "Net Worth", value: `₹${overview.netWorth.toLocaleString("en-IN")}`, suffix: "", icon: Landmark, color: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30" },
+        ].map(({ label, value, suffix, icon: Icon, color }) => (
+          <div key={label} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color}`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{label}</span>
+            </div>
+            <p className="text-xl font-bold text-gray-900 dark:text-white font-mono">
+              {value}{suffix}
+            </p>
+          </div>
+        ))}
+      </div>
+
       {/* 3. CORE ANALYTICS GRAPH (RECHARTS) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Income/Expense Trends Line Chart */}
@@ -395,11 +421,12 @@ export const Dashboard: React.FC<{ setActiveTab: (tab: string) => void }> = ({ s
               <span>FinBuddy AI Suggestions</span>
             </div>
             <h4 className="font-bold text-sm text-gray-900 dark:text-white font-display">
-              Smart Saving Tip of the Day
+              {overview.aiRecommendation?.summary ?? "Smart Saving Tip of the Day"}
             </h4>
             
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 leading-relaxed">
-              Based on your age of **{user?.age}** and salary of **₹{user?.salary.toLocaleString("en-IN")}**, you can optimize your taxes up to ₹46,800 under Section 80C by shifting ₹15,000 into a liquid Systematic Investment Plan (SIP) rather than holding redundant funds in standard savings accounts.
+              {overview.aiRecommendation?.recommendation ??
+                `Based on your age of ${user?.age} and salary of ₹${user?.salary.toLocaleString("en-IN")}, consider increasing long-term investments while keeping a six-month emergency reserve.`}
             </p>
           </div>
 

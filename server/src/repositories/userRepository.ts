@@ -13,6 +13,14 @@ export async function createUser(user: User): Promise<User> {
   return user;
 }
 
+export async function upsertDemoUser(user: User): Promise<void> {
+  await users().updateOne(
+    { email: user.email.trim().toLowerCase() },
+    { $set: user },
+    { upsert: true },
+  );
+}
+
 export async function findUserByEmail(email: string): Promise<User | null> {
   return users().findOne(
     { email: email.trim().toLowerCase() },

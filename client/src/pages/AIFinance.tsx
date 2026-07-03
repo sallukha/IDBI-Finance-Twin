@@ -25,7 +25,7 @@ import { AIBudgetPlan, AIFraudReport } from "../types.js";
 type AITab = "coach" | "budget" | "fraud" | "loans" | "investments";
 
 export const AIFinance: React.FC = () => {
-  const { token, addToast, user } = useApp();
+  const { token, addToast, user, overview } = useApp();
   const [activeTab, setActiveTab] = useState<AITab>("coach");
 
   // 1. CHAT COACH STATES
@@ -521,12 +521,40 @@ export const AIFinance: React.FC = () => {
         {/* ==========================================
             TAB 4: EMI LOAN DESK
            ========================================== */}
-        {activeTab === "loans" && <LoanCalculator />}
+        {activeTab === "loans" && (
+          <div className="space-y-4">
+            {overview?.loanPrediction && (
+              <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-3 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4">
+                <div><p className="text-[10px] text-gray-500">Eligibility</p><p className="font-bold text-emerald-600">{overview.loanPrediction.eligible ? "Eligible" : "Not Eligible"}</p></div>
+                <div><p className="text-[10px] text-gray-500">Loan Amount</p><p className="font-bold">₹{overview.loanPrediction.loanAmount.toLocaleString("en-IN")}</p></div>
+                <div><p className="text-[10px] text-gray-500">Estimated EMI</p><p className="font-bold">₹{overview.loanPrediction.emi.toLocaleString("en-IN")}</p></div>
+                <div><p className="text-[10px] text-gray-500">Affordability</p><p className="font-bold">{overview.loanPrediction.affordability}</p></div>
+                <div><p className="text-[10px] text-gray-500">Confidence</p><p className="font-bold">{overview.loanPrediction.confidence}%</p></div>
+              </div>
+            )}
+            <LoanCalculator />
+          </div>
+        )}
 
         {/* ==========================================
             TAB 5: WEALTH PORTFOLIO OPTIONS
            ========================================== */}
-        {activeTab === "investments" && <InvestmentSuggestions />}
+        {activeTab === "investments" && (
+          <div className="space-y-4">
+            {!!overview?.investments.length && (
+              <div className="max-w-4xl mx-auto grid sm:grid-cols-3 gap-3">
+                {overview.investments.map((investment) => (
+                  <div key={investment.type} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4">
+                    <p className="text-xs text-gray-500">{investment.type}</p>
+                    <p className="text-lg font-bold mt-1">₹{investment.amount.toLocaleString("en-IN")}</p>
+                    <p className="text-xs font-semibold text-emerald-600 mt-1">Returns: {investment.returns}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <InvestmentSuggestions />
+          </div>
+        )}
       </div>
     </div>
   );
